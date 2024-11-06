@@ -4,6 +4,3 @@ lightgbm
 numpy
 matplotlib
 tqdm
-calendar
-datetime
-jpholiday
