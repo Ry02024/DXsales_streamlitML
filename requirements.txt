@@ -1,5 +1,3 @@
-sys
-os
 streamlit
 pandas
 lightgbm
