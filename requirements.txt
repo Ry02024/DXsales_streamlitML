@@ -4,3 +4,4 @@ lightgbm
 numpy
 matplotlib
 tqdm
+jpholiday
