@@ -1,0 +1,3 @@
+# .streamlit/config.toml
+[server]
+maxUploadSize = 1024  # 単位はMBで、ここでは1GBに設定
