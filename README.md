@@ -1,2 +1,2 @@
 # DXsales_streamlitML
-![AI Module](./images/AI_Model.jpg)
+![AI Module](./images/AI_Module.jpg)
