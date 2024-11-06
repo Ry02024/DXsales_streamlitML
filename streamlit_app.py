@@ -17,9 +17,6 @@ def main():
     model_save_dir = st.text_input("モデル保存ディレクトリ", value="Models/")
     prediction_save_dir = st.text_input("予測結果保存ディレクトリ", value="Predictions/")
 
-    # 前処理、機械学習、予測の選択
-    task_option = st.sidebar.radio("実行するタスクを選択してください", ("前処理", "機械学習", "予測"))
-
     if task_option == "前処理":
         st.sidebar.title("前処理用のデータファイルのアップロード")
         sales_file = st.sidebar.file_uploader("売上データファイル (sales_history.csv)", type=["csv"], key="sales")
