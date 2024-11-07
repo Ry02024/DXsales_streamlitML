@@ -18,49 +18,6 @@ def load_data(uploaded_file, description):
     with st.spinner(f"{description}を読み込んでいます..."):
         return pd.read_csv(uploaded_file)
 
-# 前処理関数
-def execute_preprocessing(sales_df, item_df, category_df, test_df, save_dir):
-    # 前処理処理の例
-    train_df = pd.DataFrame()  # 実際の処理内容を入れてください
-    validation_df = pd.DataFrame()
-    test_df = pd.DataFrame()
-
-    # ファイルの保存
-    train_path = os.path.join(save_dir, 'train_df.csv')
-    validation_path = os.path.join(save_dir, 'validation_df.csv')
-    test_path = os.path.join(save_dir, 'test_df.csv')
-    train_df.to_csv(train_path, index=False)
-    validation_df.to_csv(validation_path, index=False)
-    test_df.to_csv(test_path, index=False)
-
-    # 前処理完了フラグを設定
-    st.session_state["preprocessing_done"] = True
-    st.session_state["train_path"] = train_path
-    st.session_state["validation_path"] = validation_path
-    st.session_state["test_path"] = test_path
-
-# 学習関数
-def execute_training(train_df, valid_df, model_save_dir, num_iterations=1000):
-    # 学習処理の例
-    model_path = os.path.join(model_save_dir, 'lgbm_model.txt')
-    # モデルの保存
-    with open(model_path, 'w') as f:
-        f.write("dummy model data")  # 実際のモデル保存処理に置き換えてください
-
-    # 学習完了フラグを設定
-    st.session_state["training_done"] = True
-    st.session_state["model_path"] = model_path
-
-# 予測関数
-def execute_prediction(model_file, test_df, prediction_save_dir):
-    # 予測処理の例
-    prediction_path = os.path.join(prediction_save_dir, 'predictions.csv')
-    pd.DataFrame({"predictions": [0, 1, 0, 1]}).to_csv(prediction_path, index=False)  # 実際の予測処理に置き換えてください
-
-    # 予測完了フラグを設定
-    st.session_state["prediction_done"] = True
-    st.session_state["prediction_path"] = prediction_path
-
 # Streamlitアプリケーション
 def main():
     st.title('モデルのトレーニングと予測')
