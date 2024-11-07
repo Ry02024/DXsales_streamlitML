@@ -6,92 +6,94 @@ import streamlit as st
 from .utils import *  # 相対インポートで utils をインポート
 from .machine_learning import *
 
-# 各タスクの完了フラグを初期化
-if "preprocessing_done" not in st.session_state:
-    st.session_state["preprocessing_done"] = False
-if "training_done" not in st.session_state:
-    st.session_state["training_done"] = False
-if "prediction_done" not in st.session_state:
-    st.session_state["prediction_done"] = False
+# 前処理と特徴量生成を実行するメイン処理関数
+def execute_preprocessing(sales_df, item_df, category_df, test_df, save_dir):
+    try:
+        st.write("データの結合と前処理を実行中...")
+        joined_data = preprocess_data(sales_df, item_df, category_df)
+        st.success("データの結合と前処理が完了しました。")
 
-# データをロードするヘルパー関数
-def load_data(uploaded_file, description):
-    with st.spinner(f"{description}を読み込んでいます..."):
-        return pd.read_csv(uploaded_file)
+        st.write("特徴量生成を実行中...")
+        joined_data = generate_features(joined_data)
+        st.success("特徴量生成が完了しました。")
 
-# Streamlitアプリケーション
-def main():
-    st.title('モデルのトレーニングと予測')
+        st.write("カタログデータの生成中...")
+        catalog_df = complete_catalog(joined_data)
+        st.success("カタログデータの生成が完了しました。")
 
-    # 各ディレクトリの指定
-    save_dir = st.text_input("前処理データ保存ディレクトリ", value="Data/")
-    model_save_dir = st.text_input("モデル保存ディレクトリ", value="Models/")
-    prediction_save_dir = st.text_input("予測結果保存ディレクトリ", value="Predictions/")
+        st.write("欠損値を補完中...")
+        catalog_df_filled = fill_missing_values(catalog_df, test_df)
+        st.success("欠損値補完が完了しました。")
 
-    # タスク選択
-    task_option = st.sidebar.radio("実行するタスクを選択してください", ("前処理", "機械学習", "予測"))
+        st.write("追加の特徴量補完を実行中...")
+        catalog_filled_feats = fill_features(catalog_df_filled)
+        st.success("追加の特徴量補完が完了しました。")
 
-    if task_option == "前処理":
-        sales_file = st.sidebar.file_uploader("売上データファイル (sales_history.csv)", type=["csv"], key="sales")
-        item_file = st.sidebar.file_uploader("商品データファイル (item_categories.csv)", type=["csv"], key="item")
-        category_file = st.sidebar.file_uploader("カテゴリデータファイル (category_names.csv)", type=["csv"], key="category")
-        test_file = st.sidebar.file_uploader("テストデータファイル (test.csv)", type=["csv"], key="test")
+        st.write("スライディングウィンドウを使用してデータセットを生成中...")
+        train_df, test_df = generate_sliding_window_datasets(catalog_filled_feats)
+        st.success("スライディングウィンドウを使用したデータセット生成が完了しました。")
 
-        if sales_file and item_file and category_file and test_file:
-            sales_df = load_data(sales_file, "売上データ")
-            item_df = load_data(item_file, "商品データ")
-            category_df = load_data(category_file, "カテゴリデータ")
-            test_df = load_data(test_file, "テストデータ")
+        st.write("トレンド特徴量を生成中...")
+        train_df, test_df = generate_trend_features(train_df, test_df)
+        st.success("トレンド特徴量の生成が完了しました。")
 
-            if st.button("前処理と特徴量生成を実行"):
-                with st.spinner("前処理と特徴量生成を実行しています..."):
-                    execute_preprocessing(sales_df, item_df, category_df, test_df, save_dir)
-                st.success("前処理と特徴量生成が完了しました。")
+        st.write("カレンダー情報を追加中...")
+        train_df, test_df = add_calendar_features(train_df, test_df, start_date='2018-01-01', end_date='2019-12-31', predict_year_month=(2019, 12))
+        st.success("カレンダー情報の追加が完了しました。")
 
-        # 前処理が完了した場合、ダウンロードボタンを表示
-        if st.session_state["preprocessing_done"]:
-            with open(st.session_state["train_path"], "rb") as file:
-                st.download_button(label="Download train_df.csv", data=file, file_name="train_df.csv", mime="text/csv")
-            with open(st.session_state["validation_path"], "rb") as file:
-                st.download_button(label="Download validation_df.csv", data=file, file_name="validation_df.csv", mime="text/csv")
-            with open(st.session_state["test_path"], "rb") as file:
-                st.download_button(label="Download test_df.csv", data=file, file_name="test_df.csv", mime="text/csv")
+        st.write("データの分割とソートを実行中...")
+        validation_df, train_df, test_df = split_train_validation_and_sort_test(train_df, test_df, validation_main_flag=1, validation_month_target=12)
+        st.success("データの分割とソートが完了しました。")
 
-    elif task_option == "機械学習":
-        train_file = st.sidebar.file_uploader("訓練データファイル (train_df.csv)", type=["csv"], key="train")
-        valid_file = st.sidebar.file_uploader("検証データファイル (validation_df.csv)", type=["csv"], key="valid")
-        num_iterations = st.number_input("学習回数を指定", min_value=1, value=1000)
+        # データの保存
+        st.write("前処理が完了し、データを保存中...")
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
 
-        if train_file and valid_file:
-            train_df = load_data(train_file, "訓練データ")
-            valid_df = load_data(valid_file, "検証データ")
+        train_df.to_csv(os.path.join(save_dir, 'train_df.csv'), index=False)
+        validation_df.to_csv(os.path.join(save_dir, 'validation_df.csv'), index=False)
+        test_df.to_csv(os.path.join(save_dir, 'test_df.csv'), index=False)
+        st.success(f"前処理が完了し、データが {save_dir} に保存されました。")
 
-            if st.button("モデルのトレーニングを開始"):
-                with st.spinner("モデルのトレーニングを実行しています..."):
-                    execute_training(train_df, valid_df, model_save_dir, num_iterations)
-                st.success("モデルのトレーニングが完了しました。")
+    except KeyError as e:
+        st.error(f"KeyErrorが発生しました: {e}")
+        st.error("データの列名を確認してください。")
 
-        # 学習が完了した場合、ダウンロードボタンを表示
-        if st.session_state["training_done"]:
-            with open(st.session_state["model_path"], "rb") as file:
-                st.download_button(label="Download lgbm_model.txt", data=file, file_name="lgbm_model.txt", mime="text/plain")
+# モデルのトレーニングを実行する関数
+def execute_training(train_df, valid_df, model_save_dir):
+    with st.spinner("データセットをセットアップしています..."):
+        lgb_train, lgb_eval = set_data_set(train_df, valid_df)
+        st.success("データセットのセットアップが完了しました。")
 
-    elif task_option == "予測":
-        model_file = st.sidebar.file_uploader("モデルファイル (lgbm_model.txt)", type=["txt"], key="model")
-        test_file = st.sidebar.file_uploader("テストデータファイル (test_df.csv)", type=["csv"], key="test")
+    with st.spinner("LightGBMでモデルをトレーニング中..."):
+        gbm = train_by_lightgbm(lgb_train, lgb_eval)
+        st.success("モデルのトレーニングが完了しました。")
 
-        if model_file and test_file:
-            test_df = load_data(test_file, "テストデータ")
+    # モデルの保存
+    if not os.path.exists(model_save_dir):
+        os.makedirs(model_save_dir)
+    model_path = os.path.join(model_save_dir, 'lgbm_model.txt')
+    gbm.save_model(model_path)
+    st.session_state["model_path"] = model_path  # セッションステートに保存
+    st.success(f"モデルが {model_save_dir} に 'lgbm_model.txt' として保存されました。")
 
-            if st.button("予測を実行"):
-                with st.spinner("予測を実行しています..."):
-                    execute_prediction(model_file, test_df, prediction_save_dir)
-                st.success("予測が完了しました。")
+# 推論を実行する関数
+def execute_prediction(model_file, test_df, prediction_save_dir):
+    st.write("モデルをロードしています...")
+    with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+        tmp_file.write(model_file.read())
+        model_path = tmp_file.name
 
-        # 予測が完了した場合、ダウンロードボタンを表示
-        if st.session_state["prediction_done"]:
-            with open(st.session_state["prediction_path"], "rb") as file:
-                st.download_button(label="Download predictions.csv", data=file, file_name="predictions.csv", mime="text/csv")
+    gbm = Booster(model_file=model_path)
+    st.success("モデルのロードが完了しました。")
 
-if __name__ == '__main__':
-    main()
+    st.write("予測を実行中...")
+    predictions = gbm.predict(test_df)
+    st.success("予測が完了しました。")
+
+    # 予測結果の保存
+    if not os.path.exists(prediction_save_dir):
+        os.makedirs(prediction_save_dir)
+    prediction_path = os.path.join(prediction_save_dir, 'predictions.csv')
+    pd.DataFrame(predictions, columns=["predictions"]).to_csv(prediction_path, index=False)
+    st.success(f"予測結果が {prediction_save_dir} に 'predictions.csv' として保存されました。")
