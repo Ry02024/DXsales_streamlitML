@@ -55,6 +55,11 @@ def execute_preprocessing(sales_df, item_df, category_df, test_df, save_dir):
         test_df.to_csv(os.path.join(save_dir, 'test_df.csv'), index=False)
         st.success(f"前処理が完了し、データが {save_dir} に保存されました。")
 
+        st.session_state["train_path"] = os.path.join(save_dir, 'train_df.csv')
+        st.session_state["validation_path"] = os.path.join(save_dir, 'validation_df.csv')
+        st.session_state["test_path"] = os.path.join(save_dir, 'test_df.csv')
+        st.session_state["preprocessing_done"] = True  
+        
     except KeyError as e:
         st.error(f"KeyErrorが発生しました: {e}")
         st.error("データの列名を確認してください。")
@@ -75,6 +80,7 @@ def execute_training(train_df, valid_df, model_save_dir, num_iterations):
     model_path = os.path.join(model_save_dir, 'lgbm_model.txt')
     gbm.save_model(model_path)
     st.session_state["model_path"] = model_path  # セッションステートに保存
+    st.session_state["training_done"] = True  # トレーニング完了フラグ
     st.success(f"モデルが {model_save_dir} に 'lgbm_model.txt' として保存されました。")
 
 # 推論を実行する関数
@@ -96,4 +102,10 @@ def execute_prediction(model_file, test_df, prediction_save_dir):
         os.makedirs(prediction_save_dir)
     prediction_path = os.path.join(prediction_save_dir, 'predictions.csv')
     pd.DataFrame(predictions, columns=["predictions"]).to_csv(prediction_path, index=False)
+
+    # 予測結果パスをセッションステートに保存し、予測完了フラグを設定
+    st.session_state["prediction_path"] = prediction_path
+    st.session_state["prediction_done"] = True  # 予測完了フラグ
     st.success(f"予測結果が {prediction_save_dir} に 'predictions.csv' として保存されました。")
+
+
