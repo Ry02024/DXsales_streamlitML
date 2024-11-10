@@ -57,23 +57,36 @@ def main():
                 st.download_button(label="Download test_df.csv", data=file, file_name="test_df.csv", mime="text/csv")
 
     elif task_option == "機械学習":
-        train_file = st.sidebar.file_uploader("訓練データファイル (train_df.csv)", type=["csv"], key="train")
-        valid_file = st.sidebar.file_uploader("検証データファイル (validation_df.csv)", type=["csv"], key="valid")
-        num_iterations = st.number_input("学習回数を指定", min_value=1, value=1000)
-
-        if train_file and valid_file:
-            train_df = load_data(train_file, "訓練データ")
-            valid_df = load_data(valid_file, "検証データ")
-
-            if st.button("モデルのトレーニングを開始"):
-                with st.spinner("モデルのトレーニングを実行しています..."):
-                    execute_training(train_df, valid_df, model_save_dir, num_iterations)
-                st.success("モデルのトレーニングが完了しました。")
-
-        # 学習が完了した場合、ダウンロードボタンを表示
-        if st.session_state["training_done"]:
+        # トレーニングが完了している場合は、データの読み込みや訓練ボタンを表示せず、ダウンロードボタンのみ表示
+        if st.session_state.get("training_done", False):
             with open(st.session_state["model_path"], "rb") as file:
                 st.download_button(label="Download lgbm_model.txt", data=file, file_name="lgbm_model.txt", mime="text/plain")
+        else:
+            # データが未読み込みの場合のみ、データを読み込む
+            train_file = st.sidebar.file_uploader("訓練データファイル (train_df.csv)", type=["csv"], key="train")
+            valid_file = st.sidebar.file_uploader("検証データファイル (validation_df.csv)", type=["csv"], key="valid")
+
+            # ファイルがアップロードされた場合にのみデータを読み込み、セッションステートに保存
+            if train_file is not None and valid_file is not None:
+                if "data_loaded" not in st.session_state:
+                    st.session_state["train_df"] = load_data(train_file, "訓練データ")
+                    st.session_state["valid_df"] = load_data(valid_file, "検証データ")
+                    st.session_state["data_loaded"] = True  # データ読み込み済みフラグ
+
+            # データが読み込まれている場合のみトレーニング開始ボタンを表示
+            if st.session_state.get("data_loaded", False):
+                num_iterations = st.number_input("学習回数を指定", min_value=1, value=1000)
+
+                if st.button("モデルのトレーニングを開始"):
+                    with st.spinner("モデルのトレーニングを実行しています..."):
+                        execute_training(st.session_state["train_df"], st.session_state["valid_df"], model_save_dir, num_iterations)
+                        st.success("モデルのトレーニングが完了しました。")
+                        st.session_state["training_done"] = True  # トレーニング完了フラグを設定
+
+                # トレーニングが完了した場合、ダウンロードボタンを表示
+                if st.session_state.get("training_done", False):
+                    with open(st.session_state["model_path"], "rb") as file:
+                        st.download_button(label="Download lgbm_model.txt", data=file, file_name="lgbm_model.txt", mime="text/plain")
 
     elif task_option == "予測":
         model_file = st.sidebar.file_uploader("モデルファイル (lgbm_model.txt)", type=["txt"], key="model")
